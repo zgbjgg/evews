@@ -1,0 +1,10 @@
+{application, evews,
+ [
+  {description, "Ligthweigth Websocket RFC G455"},
+  {vsn, "1.9"},
+  {registered, []},
+  {modules,[evews_app, evews_sup, evews_socket, evews_acceptor]},
+  {applications, [kernel,stdlib]},
+  {mod, { evews_app, []}}
+ ]}.
+

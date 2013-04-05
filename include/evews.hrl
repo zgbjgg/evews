@@ -1,0 +1,1 @@
+-define(TCP_OPTIONS,[binary, {packet, raw}, {active, false}, {reuseaddr, true}]).
