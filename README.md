@@ -32,11 +32,13 @@ now start the supervisor with the needed args:
 		Ws Handler - the module and function that manages the websocket (as a callback module),
 			     here you can receive & send messages
 			     
-this is a simple example how to start evews websocket server:
+this is a simple example how to start evews websocket server on port 8081 and the callback module example:loop/1 :
 
-		evews_sup:start_link([{port, Port}, {ws_handler, [{callback_m, MODULE}, {callback_f, FUNCTION}]}]).
+		evews_sup:start_link([{port, 8081}, {ws_handler, [{callback_m, example}, {callback_f, loop}]}]).
 		
-and the callback module function looks like this:
+the callback module 'example' must have a function named loop which receives one parameter, the websocket
+parametrized module, and this function is a simple process that receives messages from the broswer with the 
+tuple '{browser, Data}', callback module function looks like this:
 
 		loop(Ws) ->
     		    receive
@@ -59,26 +61,20 @@ exports
 Evews Websocket is managed by a parametrized module, the next are the options in Ws:
 
 
-Ws:get(Data)
-=========
+**Ws:get(Data)**
 Parse frame and get the message
 
 Ws:send(Msg)
-=========
 Sends the message to the browser, Msg can be a string or iolist
 
 Ws:socket()
-=========
 Returns the port for this socket
 
 Ws:peername()
-=========
 Returns the address and port for the other end of a connection
 
 Ws:port()
-=========
 Returns the local port number of this socket
 
 Ws:sockname()
-=========
 Returns the local address and port number of this socket.
