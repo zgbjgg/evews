@@ -30,17 +30,26 @@
 
 -export([start/1, loop/1]).
 
+%% starts the evews websocket server on the given port
 start(Port) ->
+    %% We need port, but also the callback module (in this case 'evews_module') and the callback function
+    %% on the module (in this case 'loop').
     evews_sup:start_link([{port, Port}, {ws_handler, [{callback_m, ?MODULE}, {callback_f, loop}]}]).
 
+%% receive and sends messages with the process spawned on start_link
+%% Ws contains all info about socket and let send/receive messages.
+%% This process terminates when disconnect from browser is detected!.
 loop(Ws) ->
     receive
+	%% this messages is received from the browser, Data is a binary that can be decoded with 
+	%% Ws:get(Data) to get only the message.
 	{browser, Data} ->
 	    io:format("receive ~p\n", [Ws:get(Data)]),
 	    loop(Ws);
 	Any ->
 	    io:format("any ~p\n", [Any]),
             loop(Ws)
+	%% after one second sends a message to the browser, then use Ws:send(["pushing!"]) 
         after 1000 ->
 	    Ws:send(["pushing!"]),
 	    loop(Ws)
