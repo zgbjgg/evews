@@ -60,25 +60,25 @@ Evews Websocket is managed by a parametrized module, the next are the options in
 
 
 Ws:get(Data)
-==
+=========
 Parse frame and get the message
 
 Ws:send(Msg)
-==
+=========
 Sends the message to the browser, Msg can be a string or iolist
 
 Ws:socket()
-==
+=========
 Returns the port for this socket
 
 Ws:peername()
-==
+=========
 Returns the address and port for the other end of a connection
 
 Ws:port()
-==
+=========
 Returns the local port number of this socket
 
 Ws:sockname()
-==
+=========
 Returns the local address and port number of this socket.
