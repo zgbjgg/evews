@@ -26,38 +26,22 @@
 % NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 % POSSIBILITY OF SUCH DAMAGE.
 % ==========================================================================================================
--module(evews_sup).
+-module(evews_example).
 
--behaviour(supervisor).
+-export([start/1, loop/1]).
 
-%% API
--export([start_link/1]).
+start(Port) ->
+    evews_sup:start_link([{port, Port}, {ws_handler, [{callback_m, ?MODULE}, {callback_f, loop}]}]).
 
-%% Supervisor callbacks
--export([init/1]).
-
-%% Helper macro for declaring children of supervisor
--define(CHILD(I, Type, Args), {I, {I, start_link, Args},permanent, 2000, Type, [I]}).
-
--include("evews.hrl").
-
-%% ===================================================================
-%% API functions
-%% ===================================================================
-
-start_link([{port, Port}, {ws_handler, [{callback_m, M}, 
-					{callback_f, F}]}]) ->
-    WsHandle = {M, F},
-    supervisor:start_link({local, ?MODULE}, ?MODULE, [Port, WsHandle]).
-
-
-%% ===================================================================
-%% Supervisor callbacks
-%% ===================================================================
-
-init([Port, WsHandler]) ->
-    Args = [Port, {evews_acceptor, ws_loop}, WsHandler],
-    ?LOG_DEBUG("starting evews_sup on port: ~p, ws_handler: ~p \n", [Port, WsHandler]),
-    Childs = [?CHILD(evews_socket, worker, Args)],
-    {ok, { {one_for_all, 1000, 3600}, Childs} }.
-
+loop(Ws) ->
+    receive
+	{browser, Data} ->
+	    io:format("receive ~p\n", [Ws:get(Data)]),
+	    loop(Ws);
+	Any ->
+	    io:format("any ~p\n", [Any]),
+            loop(Ws)
+        after 1000 ->
+	    Ws:send(["pushing!"]),
+	    loop(Ws)
+    end.

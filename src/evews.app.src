@@ -1,10 +1,13 @@
 {application, evews,
  [
-  {description, "Ligthweigth Websocket RFC G455"},
+  {description, "Lightweight Websocket RFC 6455 - v1.9"},
   {vsn, "1.9"},
   {registered, []},
-  {modules,[evews_app, evews_sup, evews_socket, evews_acceptor]},
-  {applications, [kernel,stdlib]},
-  {mod, { evews_app, []}}
+  {modules,[evews_sup, 
+	    evews_socket, 
+	    evews_acceptor,
+	    evews, 
+	    'evews_rfc-6455']},
+  {applications, [kernel,stdlib]}
  ]}.
 
