@@ -31,7 +31,7 @@
 -behaviour(gen_server).
 
 %% API
--export([start_link/0, start_link/3]).
+-export([start_link/0, start_link/4]).
 
 %% gen_server callbacks
 -export([init/1, handle_call/3, handle_cast/2, handle_info/2,
@@ -41,7 +41,7 @@
 
 -include("evews.hrl").
 
--record(state, {port, handler, lsocket, ws_handler}).
+-record(state, {port, handler, lsocket, ws_handler, mode}).
 
 %%%===================================================================
 %%% API
@@ -55,9 +55,10 @@
 %%						 {error, Error}
 %% @end
 %%--------------------------------------------------------------------
-start_link(Port, Handler, WsHandler) ->
-    State = #state{port=Port, handler=Handler, ws_handler=WsHandler},
-    gen_server:start_link({local, socket}, ?MODULE, State, []).
+start_link(Port, Handler, WsHandler, SockOptions) ->
+    State = #state{port=Port, handler=Handler, ws_handler=WsHandler, 
+		   mode=case SockOptions of tcp -> tcp; _ -> ssl end},
+    gen_server:start_link({local, ?MODULE}, ?MODULE, [State, SockOptions], []).
 
 %%--------------------------------------------------------------------
 %% @doc
@@ -84,14 +85,19 @@ start_link() ->
 %%                     {stop, Reason}
 %% @end
 %%--------------------------------------------------------------------
-init(State = #state{port=Port, ws_handler=WsHandler}) ->
-    case gen_tcp:listen(Port, ?TCP_OPTIONS) of
-	{ok, LSocket} ->
-	    NewState = State#state{lsocket=LSocket, ws_handler=WsHandler},
-	    {ok, evews_acceptor:accept(NewState)};
+init([State = #state{port=Port, ws_handler=WsHandler, mode=Mode}, SockOptions]) ->
+    {ListenSocket, Acceptor} = case Mode of
+       		       		   tcp -> {gen_tcp:listen(Port, ?TCP_OPTIONS), evews_acceptor};
+		       		   ssl -> {ssl:listen(Port, SockOptions ++ ?TCP_OPTIONS), evews_acceptor_ssl}
+    		   	       end,
+    case ListenSocket of
+        {ok, LSocket}   ->
+	    NewState = State#state{lsocket=LSocket, ws_handler=WsHandler, mode=Mode},
+	    {ok, Acceptor:accept(NewState)};
 	{error, Reason} ->
 	    {stop, Reason}
     end.
+	
 
 %%--------------------------------------------------------------------
 %% @private
@@ -121,8 +127,12 @@ handle_call(_Request, _From, State) ->
 %%                                  {stop, Reason, State}
 %% @end
 %%--------------------------------------------------------------------
-handle_cast({accepted, _Pid}, State=#state{}) ->
-    {noreply, evews_acceptor:accept(State)};
+handle_cast({accepted, _Pid}, State=#state{lsocket=_LSocket, ws_handler=_Ws, mode=Mode}) ->
+    Acceptor = case Mode of
+	         tcp -> evews_acceptor;
+		 ssl -> evews_acceptor_ssl
+             end,
+    {noreply, Acceptor:accept(State)};
 handle_cast(_Msg, State) ->
     {noreply, State}.
 

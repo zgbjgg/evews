@@ -27,11 +27,11 @@
 % POSSIBILITY OF SUCH DAMAGE.
 % ==========================================================================================================
 -ifdef(debug_logging).
--define(LOG_DEBUG(Msg, Args), io:format("(~p):[debug evews] " ++ Msg ++ "\n", [self() | Args])).
+-define(LOG_DEBUG(Msg, Args), error_logger:info_msg("(~p):[DEBUG EVEWS]\n " ++ Msg ++ "\n", [self() | Args])).
 -else.
 -define(LOG_DEBUG(Msg, Args), ok).
 -endif.
--define(TCP_OPTIONS,[binary, {packet, raw}, {active, false}, {reuseaddr, true}]).
+-define(TCP_OPTIONS,[binary, inet, {packet, raw}, {active, false}, {reuseaddr, true}]).
 -define(FRAME(Fin, Rsv1, Rsv2, Rsv3, Opcode, MaskBit, PayloadLen, MaskKey, PayloadData, Rest), [{fin, Fin}, {rsv1, Rsv1}, 
 												{rsv2, Rsv2}, {rsv3, Rsv3}, 
 												{opcode, Opcode}, 

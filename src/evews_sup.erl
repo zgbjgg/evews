@@ -45,19 +45,25 @@
 %% API functions
 %% ===================================================================
 
-start_link([{port, Port}, {ws_handler, [{callback_m, M}, 
-					{callback_f, F}]}]) ->
+start_link(Options) ->
+    Port = proplists:get_value(port, Options),
+    [{callback_m, M}, {callback_f, F}] = proplists:get_value(ws_handler, Options),
     WsHandle = {M, F},
-    supervisor:start_link({local, ?MODULE}, ?MODULE, [Port, WsHandle]).
+    SockMode = proplists:get_value(ssl, Options, tcp),
+    supervisor:start_link({local, ?MODULE}, ?MODULE, [Port, WsHandle, SockMode]).
 
 
 %% ===================================================================
 %% Supervisor callbacks
 %% ===================================================================
 
-init([Port, WsHandler]) ->
-    Args = [Port, {evews_acceptor, ws_loop}, WsHandler],
-    ?LOG_DEBUG("starting evews_sup on port: ~p, ws_handler: ~p \n", [Port, WsHandler]),
+init([Port, WsHandler, SockMode]) ->
+    {Args, Mode} = case SockMode of
+	               tcp   ->
+	                   {[Port, {evews_acceptor, ws_loop}, WsHandler, tcp], tcp};
+	       	       _     ->
+		   	   {[Port, {evews_acceptor_ssl, ws_ssl_loop}, WsHandler, SockMode], ssl}
+	    	   end,
+    ?LOG_DEBUG("starting evews_sup on port: ~p, ws_handler: ~p \nMode ~p", [Port, WsHandler, Mode]),
     Childs = [?CHILD(evews_socket, worker, Args)],
     {ok, { {one_for_all, 1000, 3600}, Childs} }.
-

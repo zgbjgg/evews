@@ -26,15 +26,20 @@
 % NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 % POSSIBILITY OF SUCH DAMAGE.
 % ==========================================================================================================
--module(evews_example).
+-module(evews_example_ssl).
 
 -export([start/1, loop/1]).
 
 %% starts the evews websocket server on the given port
 start(Port) ->
+    ok = application:start(crypto),
+    ok = application:start(public_key),
+    ok = application:start(ssl),
     %% We need port, but also the callback module (in this case 'evews_module') and the callback function
     %% on the module (in this case 'loop').
-    evews_sup:start_link([{port, Port}, {ws_handler, [{callback_m, ?MODULE}, {callback_f, loop}]}]).
+    %% SSL needs the certfile and keyfile (absolute paths) and password if any.
+    evews_sup:start_link([{port, Port}, {ws_handler, [{callback_m, ?MODULE}, {callback_f, loop}]}, {ssl, [{certfile, "certfile.pem"}, 
+													  {keyfile, "keyfile.pem"}													  		     {password, "password"}]}]).
 
 %% receive and sends messages with the process spawned on start_link
 %% Ws contains all info about socket and let send/receive messages.

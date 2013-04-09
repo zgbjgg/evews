@@ -53,7 +53,7 @@ loop(Ws) ->
             loop(Ws)
 	%% after one second sends a message to the browser, then use Ws:send(["pushing!"]) 
         after 1000 ->
-	    Ws:send(["pushing!"]),
+	    Ws:send(["evews echo!"]),
 	    loop(Ws)
     end.
 

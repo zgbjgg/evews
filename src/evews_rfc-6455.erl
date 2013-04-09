@@ -29,7 +29,7 @@
 -module('evews_rfc-6455').
 
 %% API
--export([handshake/1, frame/1, unmask/5, format_msg/2, check_opcode/1]).
+-export([handshake/1, frame/3, unmask/5, format_msg/2, check_opcode/1]).
 
 %% includes
 -include("evews.hrl").
@@ -39,10 +39,9 @@
 -spec handshake(Request :: binary()) -> list().
 handshake(Request) ->
         Headers = headers_as_plist(Request),
-        ?LOG_DEBUG("headers request: ~p", [Headers]),
+        ?LOG_DEBUG("request headers: ~p", [Headers]),
 	Accept = key_accept(proplists:get_value("Sec-WebSocket-Key", Headers)),
 	headers_handshake_response(Accept).
-        %% gen_tcp:send(Socket, evews_handshake:res_headers(Accept)).
 
 %% @doc Decode the requesting handshake.
 %% @spec headers_as_plist(Headers :: binary() | list()) -> list()
@@ -77,10 +76,10 @@ headers_handshake_response(Accept) ->
      "Sec-WebSocket-Accept: ", Accept, "\r\n\r\n"].
 
 %% Returns the decoded frame as proplist.
-%% @spec frame(Frame :: binary()) -> list()
--spec frame(Frame :: binary()) -> list().
-frame(Frame) ->
-    case Frame of
+%% @spec frame(Frame :: binary(), Remain :: binary(), SockMode :: tcp | ssl) -> list()
+-spec frame(Frame :: binary(), Remain :: binary(), SockMode :: tcp | ssl) -> list().
+frame(Frame, Remain, SockMode) ->
+    case sanity(Frame, Remain, SockMode) of
         <<Fin:1, Rsv1:1, 
 	  Rsv2:1, Rsv3:1, 
 	  Opcode:4, MaskBit:1, 
@@ -111,7 +110,6 @@ frame(Frame) ->
 -spec unmask(Key :: binary(), Len :: integer(), binary(), Y :: integer(), Acc :: binary) -> binary().
 unmask(_Key, 0, _, _, Acc) ->
    List = lists:reverse(binary_to_list(Acc)),
-   ?LOG_DEBUG("unmask: ~p", [List]),
    list_to_binary(List);
 unmask(Key, Len, <<X:8, Rest/binary>>, Y, Acc) ->
     U = X bxor ( binary:decode_unsigned(binary:part(Key, {Y rem 4, 1})) ),
@@ -125,13 +123,13 @@ format_msg(Data, OpCode) ->
     Len = erlang:size(BinData),
     case is_integer(Len) of
         true when Len < 126 ->
-	     ?LOG_DEBUG("sending format message: <<1:1, 0:3, ~p:4, 0:1, ~p:7, ~p/binary>>", [OpCode, Len, BinData]),
+	     ?LOG_DEBUG("sending format message: \n<<1:1, 0:3, ~p:4, 0:1, ~p:7, ~p/binary>>", [OpCode, Len, BinData]),
              <<1:1, 0:3, OpCode:4, 0:1, Len:7, BinData/binary>>;
         true when Len < 65536 ->
-	     ?LOG_DEBUG("sending format message: <<1:1, 0:3, ~p:4, 0:1, 126:7, ~p:16, ~p/binary>>", [OpCode, Len, BinData]),
+	     ?LOG_DEBUG("sending format message: \n<<1:1, 0:3, ~p:4, 0:1, 126:7, ~p:16, ~p/binary>>", [OpCode, Len, BinData]),
              <<1:1, 0:3, OpCode:4, 0:1, 126:7, Len:16, BinData/binary>>;
         true ->
-	     ?LOG_DEBUG("sending format message: <<1:1, 0:3, ~p:4, 0:1, 127:7, 0:1, ~p:63, ~p/binary>>", [OpCode, Len, BinData]),
+	     ?LOG_DEBUG("sending format message: \n<<1:1, 0:3, ~p:4, 0:1, 127:7, 0:1, ~p:63, ~p/binary>>", [OpCode, Len, BinData]),
              <<1:1, 0:3, OpCode:4, 0:1, 127:7, 0:1, Len:63, BinData/binary>>
     end.
 
@@ -145,3 +143,10 @@ check_opcode(8) -> close;
 check_opcode(9) -> ping;
 check_opcode(10) -> pong;
 check_opcode(_)  -> error_grave_null.
+
+%% @doc Appends the remain value to the entire frame.
+%% @spec sanity(Frame :: binary(), Remain :: binary(), tcp | ssl | atom()) -> binary()
+-spec sanity(Frame :: binary(), Remain :: binary(), tcp | ssl | atom()) -> binary().
+sanity(Frame, <<>>, tcp)       -> Frame;
+sanity(Frame, Remain, ssl)     -> <<Remain/binary, Frame/binary>>;
+sanity(_Frame, _Remain, _Mode) -> <<>>.
