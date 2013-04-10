@@ -62,7 +62,7 @@ Evews Websocket is managed by a parametrized module, the next are the options in
 
 
 		Ws:get(Data)
-		Parse frame and get the message
+		Gets the message
 
 		Ws:send(Msg)
 		Sends the message to the browser, Msg can be a string or iolist
