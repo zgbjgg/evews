@@ -78,3 +78,8 @@ Evews Websocket is managed by a parametrized module, the next are the options in
 
 		Ws:sockname()
 		Returns the local address and port number of this socket.
+		
+LICENSE
+======
+
+THIS SOFTWARE IS LICENSED UNDER BSD LICENSE. see LICENSE.txt for more info
