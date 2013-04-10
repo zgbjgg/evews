@@ -53,7 +53,7 @@ tuple '{browser, Data}', callback module function looks like this:
             			loop(Ws)
     		    end.
     		  
-check the [evews_example.erl]() module for more info
+check the [evews_example.erl](https://github.com/jorgegarrido/evews/blob/master/examples/evews_example.erl) module for more info
 
 exports
 ======
