@@ -48,7 +48,7 @@ tuple '{browser, Data}', callback module function looks like this:
             			io:format("any ~p\n", [Any]),
             			loop(Ws)
         		after 1000 ->
-            			Ws:send(["pushing!"]),
+            			Ws:send(["echo!"]),
             			loop(Ws)
     		    end.
     		  
