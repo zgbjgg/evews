@@ -22,16 +22,15 @@ Or without debug (option for not create a long messages in the logs)
 start
 ====
 
-To start the evews websocket server just add it to your paths:
+To start the evews websocket server just add the ebin/ path, process that controls the sokcte is designed as a 
+non-blocking socket (tcp/ssl) to accept many concurrents connections at the same time, to start supervisor, it 
+needs the next args:
 
-		erl -pa /path/evews/ebin/
+		* Port 	   - the port where websocket runs
+		* Ws Handler - the module and function that manages the websocket (as a callback module),
+			     		here you can receive & send messages
+		* Ssl	   - Certfile, Keyfile and password (if any)
 		
-now start the supervisor with the needed args:
-
-		Port 	   - the port where websocket runs
-		Ws Handler - the module and function that manages the websocket (as a callback module),
-			     here you can receive & send messages
-			     
 this is a simple example how to start evews websocket server on port 8081 and the callback module example:loop/1 :
 
 		evews_sup:start_link([{port, 8081}, {ws_handler, [{callback_m, example}, {callback_f, loop}]}]).
