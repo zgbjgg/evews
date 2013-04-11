@@ -49,8 +49,8 @@ loop(Ws) ->
 	Any ->
 	    io:format("any ~p\n", [Any]),
             loop(Ws)
-	%% after one second sends a message to the browser, then use Ws:send(["pushing!"]) 
+	%% after one second sends a message to the browser, then use Ws:send(["echo!"]) 
         after 1000 ->
-	    Ws:send(["evews echo!"]),
+	    Ws:send(["echo!"]),
 	    loop(Ws)
     end.
