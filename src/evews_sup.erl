@@ -58,7 +58,7 @@ start_link(Options) ->
 %% ===================================================================
 
 init([Port, WsHandler, SockMode]) ->
-    {Args, Mode} = case SockMode of
+    {Args, _Mode} = case SockMode of
 	               tcp   ->
 	                   {[Port, {evews_acceptor, ws_loop}, WsHandler, tcp], tcp};
 	       	       _     ->

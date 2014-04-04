@@ -77,7 +77,8 @@ ws_ssl_loop(Socket, {CallbackWsModule, CallbackWsFun}) ->
             ok = ssl:send(Socket, Handshake),
 	    Ws = evews:new(Socket, ssl), 
 	    Pid = spawn_link(fun() -> CallbackWsModule:CallbackWsFun(Ws) end),
-	    callback_ws_ssl_loop(Socket, Pid, <<>>);
+	    Ref = erlang:monitor(process, Pid),
+	    callback_ws_ssl_loop(Socket, Pid, <<>>, Ref);
         {ssl_closed, _}              ->
 	    ?LOG_DEBUG("socket closed: ~p", [Socket]),
 	    closed;
@@ -89,13 +90,13 @@ ws_ssl_loop(Socket, {CallbackWsModule, CallbackWsFun}) ->
     end.
 
 %% @doc Process to handle in/out data over websocket
-%% @spec callback_ws_loop(Socket :: port(), Pid :: pid()) -> any()
--spec callback_ws_ssl_loop(Socket :: port(), Pid :: pid(), Remain :: binary()) -> any().
-callback_ws_ssl_loop(Socket, Pid, Remain) ->
+%% @spec callback_ws_loop(Socket :: port(), Pid :: pid(), Remain :: binary(), Ref :: reference()) -> any()
+-spec callback_ws_ssl_loop(Socket :: port(), Pid :: pid(), Remain :: binary(), Ref :: reference()) -> any().
+callback_ws_ssl_loop(Socket, Pid, Remain, Ref) ->
     ok = ssl:setopts(Socket, [{active, once}]),
     receive
   	{ssl, Socket, Remaining} when erlang:size(Remaining) < 2 ->
-	    callback_ws_ssl_loop(Socket, Pid, Remaining);
+	    callback_ws_ssl_loop(Socket, Pid, Remaining, Ref);
         {ssl, Socket, Data}  ->
 	    Frame = 'evews_rfc-6455':frame(Data, Remain, ssl),
 	    case proplists:get_value(opcode, Frame) of
@@ -105,14 +106,16 @@ callback_ws_ssl_loop(Socket, Pid, Remain) ->
 		    ssl:close(Socket);
 		_ ->
 	    	    Pid ! {browser, Frame},
-	    	    callback_ws_ssl_loop(Socket, Pid, <<>>)
+	    	    callback_ws_ssl_loop(Socket, Pid, <<>>, Ref)
 	    end;
 	{ssl_closed, Socket} ->
  	    Pid ! {browser_closed, self()};
 	{send, _Data}        ->
- 	    callback_ws_ssl_loop(Socket, Pid, Remain);
+ 	    callback_ws_ssl_loop(Socket, Pid, Remain, Ref);
+	{'DOWN', Ref, _, _, _} ->
+	    gen_tcp:close(Socket);
 	close                ->
  	    gen_tcp:close(Socket);
 	_Any                  ->
- 	    callback_ws_ssl_loop(Socket, Pid, Remain)
+ 	    callback_ws_ssl_loop(Socket, Pid, Remain, Ref)
     end.

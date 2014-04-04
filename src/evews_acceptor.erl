@@ -65,7 +65,8 @@ ws_loop(Socket, {CallbackWsModule, CallbackWsFun}) ->
             ok = gen_tcp:send(Socket, Handshake),
 	    Ws = evews:new(Socket, tcp), 
 	    Pid = spawn_link(fun() -> CallbackWsModule:CallbackWsFun(Ws) end),
-	    callback_ws_loop(Socket, Pid);
+	    Ref = erlang:monitor(process, Pid),
+	    callback_ws_loop(Socket, Pid, Ref);
         {tcp_closed, _}              ->
 	    ?LOG_DEBUG("socket closed: ~p", [Socket]),
 	    closed;
@@ -75,9 +76,9 @@ ws_loop(Socket, {CallbackWsModule, CallbackWsFun}) ->
     end.
 
 %% @doc Process to handle in/out data over websocket
-%% @spec callback_ws_loop(Socket :: port(), Pid :: pid()) -> any()
--spec callback_ws_loop(Socket :: port(), Pid :: pid()) -> any().
-callback_ws_loop(Socket, Pid) ->
+%% @spec callback_ws_loop(Socket :: port(), Pid :: pid(), reference()) -> any()
+-spec callback_ws_loop(Socket :: port(), Pid :: pid(), Ref :: reference()) -> any().
+callback_ws_loop(Socket, Pid, Ref) ->
     ok = inet:setopts(Socket, [{active, once}]),
     receive
         {tcp, Socket, Data}  ->
@@ -89,14 +90,16 @@ callback_ws_loop(Socket, Pid) ->
 		    gen_tcp:close(Socket);
 		_ ->
 	    	    Pid ! {browser, Frame},
-	    	    callback_ws_loop(Socket, Pid)
+	    	    callback_ws_loop(Socket, Pid, Ref)
 	    end;
 	{tcp_closed, Socket} ->
  	    Pid ! {browser_closed, self()};
 	{send, _Data}        ->
- 	    callback_ws_loop(Socket, Pid);
+ 	    callback_ws_loop(Socket, Pid, Ref);
+	{'DOWN', Ref, _, _, _} ->
+	    gen_tcp:close(Socket);
 	close                ->
  	    gen_tcp:close(Socket);
 	_Any                  ->
- 	    callback_ws_loop(Socket, Pid)
+ 	    callback_ws_loop(Socket, Pid, Ref)
     end.
