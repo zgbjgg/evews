@@ -63,8 +63,8 @@ ws_loop(Socket, {CallbackWsModule, CallbackWsFun}) ->
 	    Handshake = 'evews_rfc-6455':handshake(Data),
 	    ?LOG_DEBUG("handshake: ~p", [Handshake]),
             ok = gen_tcp:send(Socket, Handshake),
-	    Ws = evews:new(Socket, tcp), 
-	    Pid = spawn_link(fun() -> CallbackWsModule:CallbackWsFun(Ws) end),
+	    WsInfo = evews:init(Socket, tcp), 
+	    Pid = spawn_link(fun() -> CallbackWsModule:CallbackWsFun({evews, WsInfo}) end),
 	    Ref = erlang:monitor(process, Pid),
 	    callback_ws_loop(Socket, Pid, Ref);
         {tcp_closed, _}              ->

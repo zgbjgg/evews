@@ -75,8 +75,8 @@ ws_ssl_loop(Socket, {CallbackWsModule, CallbackWsFun}) ->
 	    Handshake = 'evews_rfc-6455':handshake(Data),
 	    ?LOG_DEBUG("handshake: ~p", [Handshake]),
             ok = ssl:send(Socket, Handshake),
-	    Ws = evews:new(Socket, ssl), 
-	    Pid = spawn_link(fun() -> CallbackWsModule:CallbackWsFun(Ws) end),
+	    WsInfo = evews:init(Socket, ssl), 
+	    Pid = spawn_link(fun() -> CallbackWsModule:CallbackWsFun({evews, WsInfo}) end),
 	    Ref = erlang:monitor(process, Pid),
 	    callback_ws_ssl_loop(Socket, Pid, <<>>, Ref);
         {ssl_closed, _}              ->

@@ -64,6 +64,6 @@ init([Port, WsHandler, SockMode]) ->
 	       	       _     ->
 		   	   {[Port, {evews_acceptor_ssl, ws_ssl_loop}, WsHandler, SockMode], ssl}
 	    	   end,
-    ?LOG_DEBUG("starting evews_sup on port: ~p, ws_handler: ~p \nMode ~p", [Port, WsHandler, Mode]),
+    ?LOG_DEBUG("starting evews_sup on port: ~p, ws_handler: ~p \nMode ~p", [Port, WsHandler, _Mode]),
     Childs = [?CHILD(evews_socket, worker, Args)],
     {ok, { {one_for_all, 1000, 3600}, Childs} }.

@@ -37,20 +37,21 @@ start(Port) ->
     evews_sup:start_link([{port, Port}, {ws_handler, [{callback_m, ?MODULE}, {callback_f, loop}]}]).
 
 %% receive and sends messages with the process spawned on start_link
-%% Ws contains all info about socket and let send/receive messages.
+%% WsInfo contains all info about socket and let send/receive messages.
+%% Ws is the callback module 
 %% This process terminates when disconnect from browser is detected!.
-loop(Ws) ->
+loop({Ws, WsInfo}) ->
     receive
 	%% this messages is received from the browser, Data is a binary that can be decoded with 
 	%% Ws:get(Data) to get only the message.
 	{browser, Data} ->
 	    io:format("receive ~p\n", [Ws:get(Data)]),
-	    loop(Ws);
+	    loop({Ws, WsInfo});
 	Any ->
 	    io:format("any ~p\n", [Any]),
-            loop(Ws)
+            loop({Ws, WsInfo})
 	%% after one second sends a message to the browser, then use Ws:send(["echo!"]) 
         after 1000 ->
-	    Ws:send(["echo!"]),
-	    loop(Ws)
+	    Ws:send(["echo!"], WsInfo),
+	    loop({Ws, WsInfo})
     end.

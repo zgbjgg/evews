@@ -37,35 +37,35 @@ start(Port) ->
     evews_sup:start_link([{port, Port}, {ws_handler, [{callback_m, ?MODULE}, {callback_f, loop}]}]).
 
 %% receive and sends messages with the process spawned on start_link
-%% Ws contains all info about socket and let send/receive messages.
+%% WsInfo contains all info about socket and let send/receive messages.
 %% This process terminates when disconnect from browser is detected!.
-loop(Ws) ->
+loop({Ws, WsInfo}) ->
     receive
 	%% this messages is received from the browser, Data is a binary that can be decoded with 
 	%% Ws:get(Data) to get only the message.
 	{browser, Data} ->
 	    %% call this to print functions exported on Ws
-	    ws_export(Ws),
+	    ws_export(Ws, WsInfo),
 	    io:format("receive ~p\n", [Ws:get(Data)]),
-	    loop(Ws);
+	    loop({Ws, WsInfo});
 	Any ->
 	    io:format("any ~p\n", [Any]),
-            loop(Ws)
+            loop({Ws, WsInfo})
 	%% after one second sends a message to the browser, then use Ws:send(["echo!"]) 
         after 1000 ->
-	    Ws:send(["echo!"]),
-	    loop(Ws)
+	    Ws:send(["echo!"], WsInfo),
+	    loop({Ws, WsInfo})
     end.
 
 %% prints all functions exports on the parametrized module
-ws_export(Ws) ->
+ws_export(Ws, WsInfo) ->
     %% prints socket
-    io:format("socket: ~p\n", [Ws:socket()]),
+    io:format("socket: ~p\n", [Ws:socket(WsInfo)]),
     %% prints peername 
-    io:format("peername: ~p\n", [Ws:peername()]),
+    io:format("peername: ~p\n", [Ws:peername(WsInfo)]),
     %% prints port
-    io:format("port: ~p\n", [Ws:port()]),
+    io:format("port: ~p\n", [Ws:port(WsInfo)]),
     %% prints sockname
-    io:format("sockname: ~p\n", [Ws:sockname()]).
+    io:format("sockname: ~p\n", [Ws:sockname(WsInfo)]).
 
     

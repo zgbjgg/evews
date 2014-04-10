@@ -26,55 +26,65 @@
 % NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 % POSSIBILITY OF SUCH DAMAGE.
 % ==========================================================================================================
--module(evews, [Socket, Mode]).
+-module(evews).
 
 %% API
--export([socket/0, send/1, get/1, peername/0, port/0, sockname/0]).
+-export([init/2, socket/1, send/2, get/1, peername/1, port/1, sockname/1]).
 
 %% includes
 -include("evews.hrl").
 
+%% record for store the data module
+%% supress the error: parametrised modules are no longer availables
+-record(ws_info, { socket, mode }).
+
+%% @doc Dump values into record
+%% @spec init(Socket :: port(), Mode :: atom()) -> atom()
+-spec init(Socket :: port(), Mode :: atom()) -> atom().
+init(Socket, Mode) ->
+    #ws_info{ socket = Socket, mode = Mode}.
+
 %% @doc Returns the port for this socket.
-%% @spec socket() -> port()
--spec socket() -> port.
-socket() ->
-    ?LOG_DEBUG("socket is: ~p", [Socket]),
-    Socket.
+%% @spec socket(WsInfo :: record()) -> port()
+-spec socket(WsInfo :: record()) -> port.
+socket(WsInfo) ->
+    ?LOG_DEBUG("socket is: ~p", [WsInfo#ws_info.socket]),
+    WsInfo#ws_info.socket.
 
 %% @doc Sends message to the websocket client, encoding as format frame 
 %%	requires over this socket.
-%% @spec send(Msg :: iolist()) -> ok | {error, Reason :: term()}
--spec send(Msg :: iolist()) -> ok | {error, Reason :: term()}.
-send(Msg) ->
+%% @spec send(Msg :: iolist(), WsInfo :: record()) -> ok | {error, Reason :: term()}
+-spec send(Msg :: iolist(), WsInfo :: record()) -> ok | {error, Reason :: term()}.
+send(Msg, WsInfo) ->
     FormatMsg = 'evews_rfc-6455':format_msg(Msg, 1),
     ?LOG_DEBUG("sending: ~p", [FormatMsg]),
-    case Mode of
+    case WsInfo#ws_info.mode of
         tcp ->
-	    gen_tcp:send(Socket, FormatMsg);
+	    gen_tcp:send(WsInfo#ws_info.socket, FormatMsg);
         ssl ->
-	    ssl:send(Socket, FormatMsg)
+	    ssl:send(WsInfo#ws_info.socket, FormatMsg)
     end.
 
 %% @doc Returns the address and port for the other end of a connection.
-%% @spec peername() -> {ok, {Address::tuple(), Port :: integer()}} | {error, term()}
--spec peername() -> {ok, {Address::tuple(), Port :: integer()}} | {error, term()}.
-peername() ->
-    ?LOG_DEBUG("socket peername: ~p", [inet:peername(Socket)]),
-    inet:peername(Socket).
+%% @spec peername(WsInfo :: record()) -> {ok, {Address::tuple(), Port :: integer()}} | {error, term()}
+-spec peername(WsInfo :: record()) -> {ok, {Address::tuple(), Port :: integer()}} | {error, term()}.
+peername(WsInfo) ->
+    ?LOG_DEBUG("socket peername: ~p", [inet:peername(WsInfo#ws_info.socket)]),
+    inet:peername(WsInfo#ws_info.socket).
 
 %% @doc Returns the local port number of this socket
-%% @spec port() -> {ok, Port :: integer()} | {error, any()}
--spec port() -> {ok, Port :: integer()} | {error, any()}.
-port() ->
-    ?LOG_DEBUG("socket port: ~p", [inet:port(Socket)]),
-    inet:port(Socket).
+%% @spec port(WsInfo :: record()) -> {ok, Port :: integer()} | {error, any()}
+-spec port(WsInfo :: record()) -> {ok, Port :: integer()} | {error, any()}.
+port(WsInfo) ->
+    ?LOG_DEBUG("socket port: ~p", [inet:port(WsInfo#ws_info.socket)]),
+    inet:port(WsInfo#ws_info.socket).
 
 %% @doc Returns the local address and port number of this socket.
-%% @spec sockname() -> {ok, {Address::tuple(), Port :: integer()}} | {error, term()}
--spec sockname() -> {ok, {Address::tuple(), Port :: integer()}} | {error, term()}.
-sockname() ->
-    ?LOG_DEBUG("sockname: ~p", [inet:sockname(Socket)]),
-    inet:sockname(Socket).
+%% @spec sockname(WsInfo :: record()) -> {ok, {Address::tuple(), Port :: integer()}} | {error, term()}
+-spec sockname(WsInfo :: record()) -> {ok, {Address::tuple(), Port :: integer()}} | {error, term()}.
+sockname(WsInfo) ->
+    ?LOG_DEBUG("sockname: ~p", [inet:sockname(WsInfo#ws_info.socket)]),
+    inet:sockname(WsInfo#ws_info.socket).
 
 %% @doc Gets the data in the frame sent by the websocket client.
 %% @spec get(Frame :: list()) -> binary()
