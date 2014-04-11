@@ -37,7 +37,7 @@
 -export([init/1]).
 
 %% Helper macro for declaring children of supervisor
--define(CHILD(I, Type, Args), {I, {I, start_link, Args},permanent, 2000, Type, [I]}).
+-define(CHILD(N, I, Type, Args), {N, {I, start_link, Args},permanent, 2000, Type, [I]}).
 
 -include("evews.hrl").
 
@@ -58,12 +58,23 @@ start_link(Options) ->
 %% ===================================================================
 
 init([Port, WsHandler, SockMode]) ->
-    {Args, _Mode} = case SockMode of
+    {Args, Mode} = case SockMode of
 	               tcp   ->
 	                   {[Port, {evews_acceptor, ws_loop}, WsHandler, tcp], tcp};
 	       	       _     ->
 		   	   {[Port, {evews_acceptor_ssl, ws_ssl_loop}, WsHandler, SockMode], ssl}
 	    	   end,
-    ?LOG_DEBUG("starting evews_sup on port: ~p, ws_handler: ~p \nMode ~p", [Port, WsHandler, _Mode]),
-    Childs = [?CHILD(evews_socket, worker, Args)],
-    {ok, { {one_for_all, 1000, 3600}, Childs} }.
+    ?LOG_DEBUG("starting evews_sup on port: ~p, ws_handler: ~p \nMode ~p", [Port, WsHandler, Mode]),
+    [_, _, _, SockOptions] = Args, 
+    {ListenSocket, _Acceptor} = case Mode of
+                                   tcp -> {gen_tcp:listen(Port, ?TCP_OPTIONS), evews_acceptor};
+                                   ssl -> {ssl:listen(Port, SockOptions ++ ?TCP_OPTIONS), evews_acceptor_ssl}
+                               end,
+    case ListenSocket of
+        {ok, LSocket}   ->
+	    ?LOG_DEBUG("success creation of listen socket ~p on evews_sup with options ~p\n", [LSocket, ?TCP_OPTIONS]),
+            Childs = [ ?CHILD({evews_socket, N}, evews_socket, worker, [LSocket | Args]) || N <- lists:seq(1, 10) ],
+	    {ok, { {one_for_one, 5, 10}, Childs} };
+	{error, Reason} ->
+            {stop, Reason}
+    end.    

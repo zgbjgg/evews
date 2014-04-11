@@ -29,7 +29,7 @@
 -module(evews_acceptor_ssl).
 
 %% API
--export([accept/1, accept_ws/1, ws_ssl_loop/2]).
+-export([accept/1, accept_ws/1, ws_ssl_loop/5]).
 
 %% includes
 -include("evews.hrl").
@@ -41,81 +41,99 @@
 %% @spec accept(State :: record()) -> record()
 -spec accept(State :: record()) -> record().
 accept(State = #state{lsocket=LSocket, handler=Handler, ws_handler=WsHandler, mode=_Mode}) ->    
-    proc_lib:spawn(?MODULE, accept_ws, [{self(), LSocket, Handler, WsHandler}]),
+    proc_lib:spawn_link(?MODULE, accept_ws, [{self(), LSocket, Handler, WsHandler}]),
     State.
 
 %% @doc Spawns the accepting connection to the handler ws loop.
 %% @spec accept_ws({ Server :: pid(), LSocket :: port(), {ModuleH :: atom(), FunH :: atom()}, WsHandler :: tuple()}) -> any()
 -spec accept_ws({ Server :: pid(), LSocket :: port(), {ModuleH :: atom(), FunH :: atom()}, WsHandler :: tuple()}) -> any().
 accept_ws({Server, LSocket, {ModuleH, FunH}, WsHandler}) ->
-    {ok, Socket} = ssl:transport_accept(LSocket),
-    ?LOG_DEBUG("ssl transport accept on lsocket: ~p and accepting ssl handshake", [Socket]),
-    case ssl:ssl_accept(Socket) of 
-        ok    ->
-            ssl:controlling_process(Socket, self()),
-	    ?LOG_DEBUG("ssl accepting connection on socket: ~p and spawning process", [Socket]),
-            gen_server:cast(Server, {accepted, self()}),
-	    ModuleH:FunH(Socket, WsHandler);
-	_Exit  ->
-	    ?LOG_DEBUG("ssl accept exited with ~p", [_Exit]),
-	    exit
+    case catch ssl:transport_accept(LSocket) of
+        {ok, Socket} ->
+    	    ?LOG_DEBUG("ssl transport accept on lsocket: ~p and accepting ssl handshake", [Socket]),
+            case ssl:ssl_accept(Socket) of
+	        ok    ->
+		    Pid = spawn(fun() ->
+                            ws_ssl_loop(Socket, WsHandler, down, none, none)
+                        end),		
+
+                    ok = ssl:controlling_process(Socket, self()),
+
+		    Pid ! set,
+
+	            ?LOG_DEBUG("ssl accepting connection on socket: ~p and spawning process", [Socket]),
+
+                    % gen_server:cast(Server, {accepted, self()}),
+	            % go back to accept_ws
+                    ?MODULE:accept_ws({Server, LSocket, {ModuleH, FunH}, WsHandler});
+	        _Exit  ->
+	            ?LOG_DEBUG("ssl accept exited with ~p", [_Exit]),
+	            exit
+            end;
+	_         ->
+	    ?LOG_DEBUG("unknown error", []),
+	    ok
     end.
+	
 
 %% @doc Process to handshake the headers in websocket connection.
-%% @spec ws_loop(Socket :: port(), {CallbackWsModule :: atom(), CallbackWsFun :: atom()}) -> any()
--spec ws_ssl_loop(Socket :: port(), {CallbackWsModule :: atom(), CallbackWsFun :: atom()}) -> any().
-ws_ssl_loop(Socket, {CallbackWsModule, CallbackWsFun}) ->
-    ok = ssl:setopts(Socket, [{active, once}]),
+%% @spec ws_loop(Socket :: port(), {CallbackWsModule :: atom(), CallbackWsFun :: atom()}, Status :: atom(), Ref :: reference(), Pid :: pid()) -> any()
+-spec ws_ssl_loop(Socket :: port(), {CallbackWsModule :: atom(), CallbackWsFun :: atom()}, Status :: atom(), Ref :: reference(), Pid :: pid()) -> any().
+ws_ssl_loop(Socket, {CallbackWsModule, CallbackWsFun}, Status, Ref, Pid) ->
     receive
 	%% this sanity is for my emulator, because it passes the fisrt
         %% byte as a single data in the receive
         {ssl, Socket, <<"G">>} ->
-	    ws_ssl_loop(Socket, {CallbackWsModule, CallbackWsFun});
+	    ws_ssl_loop(Socket, {CallbackWsModule, CallbackWsFun}, Status, Ref, Pid);
         {ssl, Socket, Data}          ->
-	    Handshake = 'evews_rfc-6455':handshake(Data),
-	    ?LOG_DEBUG("handshake: ~p", [Handshake]),
-            ok = ssl:send(Socket, Handshake),
-	    WsInfo = evews:init(Socket, ssl), 
-	    Pid = spawn_link(fun() -> CallbackWsModule:CallbackWsFun({evews, WsInfo}) end),
-	    Ref = erlang:monitor(process, Pid),
-	    callback_ws_ssl_loop(Socket, Pid, <<>>, Ref);
+            case maybe_do_a_handshake({Status, Data, Socket, {CallbackWsModule, CallbackWsFun}, Pid}) of
+                {ssl, close}               ->
+                    ssl:close(Socket);
+                {?MODULE, ws_ssl_loop, RefN, PidN} ->
+                    ok = ssl:setopts(Socket, [{active, once}]),
+                    ws_ssl_loop(Socket, {CallbackWsModule, CallbackWsFun}, up, RefN, PidN);
+                {?MODULE, ws_loop}             ->
+                    ok = ssl:setopts(Socket, [{active, once}]),
+                    ws_ssl_loop(Socket, {CallbackWsModule, CallbackWsFun}, up, Ref, Pid)
+            end;
         {ssl_closed, _}              ->
 	    ?LOG_DEBUG("socket closed: ~p", [Socket]),
 	    closed;
         {ssl_error, _Socket, Reason} ->
 	    ?LOG_DEBUG("error on ~p reason: ~p", [Socket, Reason]),		
             Reason;
-	_Any ->
-	    ?LOG_DEBUG("any ~p", [_Any])
+        {send, _Data}                ->
+            ok = ssl:setopts(Socket, [{active, once}]),
+            ws_ssl_loop(Socket, {CallbackWsModule, CallbackWsFun}, Status, Ref, Pid);
+        {'DOWN', Ref, _, _, _}       ->
+            ssl:close(Socket);	
+	set  ->
+  	    ok = ssl:setopts(Socket, [{active, once}]),
+	    ws_ssl_loop(Socket, {CallbackWsModule, CallbackWsFun}, Status, Ref, Pid);
+        close                        ->
+            ssl:close(Socket)  
     end.
 
-%% @doc Process to handle in/out data over websocket
-%% @spec callback_ws_loop(Socket :: port(), Pid :: pid(), Remain :: binary(), Ref :: reference()) -> any()
--spec callback_ws_ssl_loop(Socket :: port(), Pid :: pid(), Remain :: binary(), Ref :: reference()) -> any().
-callback_ws_ssl_loop(Socket, Pid, Remain, Ref) ->
-    ok = ssl:setopts(Socket, [{active, once}]),
-    receive
-  	{ssl, Socket, Remaining} when erlang:size(Remaining) < 2 ->
-	    callback_ws_ssl_loop(Socket, Pid, Remaining, Ref);
-        {ssl, Socket, Data}  ->
-	    Frame = 'evews_rfc-6455':frame(Data, Remain, ssl),
-	    case proplists:get_value(opcode, Frame) of
-	        8 ->
-		    ?LOG_DEBUG("closing ~p by opcode: ~p", [Socket, 8]),
-		    exit(Pid, kill), 
-		    ssl:close(Socket);
-		_ ->
-	    	    Pid ! {browser, Frame},
-	    	    callback_ws_ssl_loop(Socket, Pid, <<>>, Ref)
-	    end;
-	{ssl_closed, Socket} ->
- 	    Pid ! {browser_closed, self()};
-	{send, _Data}        ->
- 	    callback_ws_ssl_loop(Socket, Pid, Remain, Ref);
-	{'DOWN', Ref, _, _, _} ->
-	    gen_tcp:close(Socket);
-	close                ->
- 	    gen_tcp:close(Socket);
-	_Any                  ->
- 	    callback_ws_ssl_loop(Socket, Pid, Remain, Ref)
-    end.
+%% @doc Maybe a handshake or a process frame
+%% @spec maybe_do_a_handshake({down | up, Data :: binary(), tuple(), Pid :: pid()}) -> tuple()
+-spec maybe_do_a_handshake({down | up, Data :: binary(), tuple(), Pid :: pid()}) -> tuple().
+maybe_do_a_handshake({down, Data, Socket, {CallbackWsModule, CallbackWsFun}, _}) ->
+    Handshake = 'evews_rfc-6455':handshake(Data),
+    ?LOG_DEBUG("handshake: ~p", [Handshake]),
+    ok = ssl:send(Socket, Handshake),
+    WsInfo = evews:init(Socket, tcp),
+    Pid = spawn_link(fun() -> CallbackWsModule:CallbackWsFun({evews, WsInfo}) end),
+    Ref = erlang:monitor(process, Pid),
+   {?MODULE, ws_ssl_loop, Ref, Pid};
+maybe_do_a_handshake({up, Data, _Socket, _, Pid})   ->
+    Frame = 'evews_rfc-6455':frame(Data, <<>>, tcp),
+    case proplists:get_value(opcode, Frame) of
+        8 ->
+            ?LOG_DEBUG("closing ~p by opcode: ~p", [_Socket, 8]),
+            erlang:unlink(Pid),
+            exit(Pid, kill),
+            {ssl, close};
+        _ ->
+            Pid ! {browser, Frame},
+            {?MODULE, ws_ssl_loop}
+     end.
