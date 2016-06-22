@@ -65,7 +65,7 @@ headers_as_plist([])                              ->
 key_accept(Key) when is_list(Key) ->
     key_accept(list_to_binary(Key));
 key_accept(Key) 		  ->
-    base64:encode_to_string(crypto:sha(<<Key/binary, "258EAFA5-E914-47DA-95CA-C5AB0DC85B11">>)).
+    base64:encode_to_string(crypto:hash(sha, <<Key/binary, "258EAFA5-E914-47DA-95CA-C5AB0DC85B11">>)).
 
 %% @doc Handshake headers response.
 %% @spec headers_handshake_response(Accept :: string()) -> list()
