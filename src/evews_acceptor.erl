@@ -38,8 +38,8 @@
 -record(state, {port, handler, lsocket, ws_handler, mode}).
 
 %% @doc Accepts the requesting connection over TCP.
-%% @spec accept(State :: record()) -> record()
--spec accept(State :: record()) -> record().
+%% @spec accept(State :: tuple()) -> tuple()
+-spec accept(State :: tuple()) -> tuple().
 accept(State = #state{lsocket=LSocket, handler=Handler, ws_handler=WsHandler, mode=_Mode}) ->
     proc_lib:spawn_link(?MODULE, accept_ws, [{self(), LSocket, Handler, WsHandler}]),
     State.

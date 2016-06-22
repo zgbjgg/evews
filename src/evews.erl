@@ -45,16 +45,16 @@ init(Socket, Mode) ->
     #ws_info{ socket = Socket, mode = Mode}.
 
 %% @doc Returns the port for this socket.
-%% @spec socket(WsInfo :: record()) -> port()
--spec socket(WsInfo :: record()) -> port.
+%% @spec socket(WsInfo :: tuple()) -> port()
+-spec socket(WsInfo :: tuple()) -> port.
 socket(WsInfo) ->
     ?LOG_DEBUG("socket is: ~p", [WsInfo#ws_info.socket]),
     WsInfo#ws_info.socket.
 
-%% @doc Sends message to the websocket client, encoding as format frame 
+%% @doc Sends message to the websocket client, encoding as format frame
 %%	requires over this socket.
-%% @spec send(Msg :: iolist(), WsInfo :: record()) -> ok | {error, Reason :: term()}
--spec send(Msg :: iolist(), WsInfo :: record()) -> ok | {error, Reason :: term()}.
+%% @spec send(Msg :: iolist(), WsInfo :: tuple()) -> ok | {error, Reason :: term()}
+-spec send(Msg :: iolist(), WsInfo :: tuple()) -> ok | {error, Reason :: term()}.
 send(Msg, WsInfo) ->
     FormatMsg = 'evews_rfc-6455':format_msg(Msg, 1),
     ?LOG_DEBUG("sending: ~p", [FormatMsg]),
@@ -66,22 +66,22 @@ send(Msg, WsInfo) ->
     end.
 
 %% @doc Returns the address and port for the other end of a connection.
-%% @spec peername(WsInfo :: record()) -> {ok, {Address::tuple(), Port :: integer()}} | {error, term()}
--spec peername(WsInfo :: record()) -> {ok, {Address::tuple(), Port :: integer()}} | {error, term()}.
+%% @spec peername(WsInfo :: tuple()) -> {ok, {Address::tuple(), Port :: integer()}} | {error, term()}
+-spec peername(WsInfo :: tuple()) -> {ok, {Address::tuple(), Port :: integer()}} | {error, term()}.
 peername(WsInfo) ->
     ?LOG_DEBUG("socket peername: ~p", [inet:peername(WsInfo#ws_info.socket)]),
     inet:peername(WsInfo#ws_info.socket).
 
 %% @doc Returns the local port number of this socket
-%% @spec port(WsInfo :: record()) -> {ok, Port :: integer()} | {error, any()}
--spec port(WsInfo :: record()) -> {ok, Port :: integer()} | {error, any()}.
+%% @spec port(WsInfo :: tuple()) -> {ok, Port :: integer()} | {error, any()}
+-spec port(WsInfo :: tuple()) -> {ok, Port :: integer()} | {error, any()}.
 port(WsInfo) ->
     ?LOG_DEBUG("socket port: ~p", [inet:port(WsInfo#ws_info.socket)]),
     inet:port(WsInfo#ws_info.socket).
 
 %% @doc Returns the local address and port number of this socket.
-%% @spec sockname(WsInfo :: record()) -> {ok, {Address::tuple(), Port :: integer()}} | {error, term()}
--spec sockname(WsInfo :: record()) -> {ok, {Address::tuple(), Port :: integer()}} | {error, term()}.
+%% @spec sockname(WsInfo :: tuple()) -> {ok, {Address::tuple(), Port :: integer()}} | {error, term()}
+-spec sockname(WsInfo :: tuple()) -> {ok, {Address::tuple(), Port :: integer()}} | {error, term()}.
 sockname(WsInfo) ->
     ?LOG_DEBUG("sockname: ~p", [inet:sockname(WsInfo#ws_info.socket)]),
     inet:sockname(WsInfo#ws_info.socket).
