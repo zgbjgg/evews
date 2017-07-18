@@ -57,7 +57,7 @@ accept_ws({Server, LSocket, {ModuleH, FunH}, WsHandler}) ->
                             ws_ssl_loop(Socket, WsHandler, down, none, none)
                         end),		
 
-                    ok = ssl:controlling_process(Socket, self()),
+                    ok = ssl:controlling_process(Socket, Pid),
 
 		    Pid ! set,
 
@@ -92,7 +92,7 @@ ws_ssl_loop(Socket, {CallbackWsModule, CallbackWsFun}, Status, Ref, Pid) ->
                 {?MODULE, ws_ssl_loop, RefN, PidN} ->
                     ok = ssl:setopts(Socket, [{active, once}]),
                     ws_ssl_loop(Socket, {CallbackWsModule, CallbackWsFun}, up, RefN, PidN);
-                {?MODULE, ws_loop}             ->
+                {?MODULE, ws_ssl_loop}             ->
                     ok = ssl:setopts(Socket, [{active, once}]),
                     ws_ssl_loop(Socket, {CallbackWsModule, CallbackWsFun}, up, Ref, Pid)
             end;
@@ -121,12 +121,12 @@ maybe_do_a_handshake({down, Data, Socket, {CallbackWsModule, CallbackWsFun}, _})
     Handshake = 'evews_rfc-6455':handshake(Data),
     ?LOG_DEBUG("handshake: ~p", [Handshake]),
     ok = ssl:send(Socket, Handshake),
-    WsInfo = evews:init(Socket, tcp),
+    WsInfo = evews:init(Socket, ssl),
     Pid = spawn_link(fun() -> CallbackWsModule:CallbackWsFun({evews, WsInfo}) end),
     Ref = erlang:monitor(process, Pid),
    {?MODULE, ws_ssl_loop, Ref, Pid};
 maybe_do_a_handshake({up, Data, _Socket, _, Pid})   ->
-    Frame = 'evews_rfc-6455':frame(Data, <<>>, tcp),
+    Frame = 'evews_rfc-6455':frame(Data, <<>>, ssl),
     case proplists:get_value(opcode, Frame) of
         8 ->
             ?LOG_DEBUG("closing ~p by opcode: ~p", [_Socket, 8]),
