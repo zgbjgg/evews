@@ -8,15 +8,15 @@ download & build
 
 Clone the evews repo:
 
-		git clone https://github.com/jorgegarrido/evews.git
+	$ git clone https://github.com/jorgegarrido/evews.git
 		
 To compile you will need 'rebar', with debug logging enabled:
 
-		make debug=on compile
+	$ make debug=on compile
 
 Or without debug (option for not create a long messages in the logs)
 
-		make compile
+	$ make compile
 
 
 start
@@ -26,31 +26,34 @@ To start the evews websocket server just add the ebin/ path, process that contro
 non-blocking socket (tcp/ssl) to accept many concurrents connections at the same time, to start supervisor, it 
 needs the next args:
 
-		* Port 	   - the port where websocket runs
-		* Ws Handler - the module and function that manages the websocket (as a callback module),
-			     		here you can receive & send messages
-		* Ssl	   - Certfile, Keyfile and password (if any)
+	* Port 	   - the port where websocket runs
+	* Ws Handler - the module and function that manages the websocket (as a callback module), here you can receive & send messages
+	* Ssl	   - Certfile, Keyfile and password (if any)
 		
 this is a simple example how to start evews websocket server on port 8081 and the callback module example:loop/1 :
 
-		evews_sup:start_link([{port, 8081}, {ws_handler, [{callback_m, example}, {callback_f, loop}]}]).
-		
+```erlang
+evews_sup:start_link([{port, 8081}, {ws_handler, [{callback_m, example}, {callback_f, loop}]}]).
+```
+
 the callback module 'example' must have a function named loop which receives one parameter, a tuple with the websocket
 module and the record with the info about it, and this function is a simple process that receives messages from the broswer with the tuple '{browser, Data}', callback module function looks like this:
 
-		loop({Ws, WsInfo}) ->
-    		    receive
-        	 	{browser, Data} ->
-            			io:format("receive ~p\n", [Ws:get(Data)]),
-            			loop({Ws, WsInfo});
-        		Any ->
-            			io:format("any ~p\n", [Any]),
-            			loop(Ws)
-        		after 1000 ->
-            			Ws:send(["echo!"]),
-            			loop({Ws, WsInfo})
-    		    end.
-    		  
+```erlang
+loop({Ws, WsInfo}) ->
+  receive
+    {browser, Data} ->
+      io:format("receive ~p\n", [Ws:get(Data)]),
+      loop({Ws, WsInfo});
+    Any ->
+      io:format("any ~p\n", [Any]),
+      loop(Ws)
+    after 1000 ->
+      Ws:send(["echo!"]),
+      loop({Ws, WsInfo})
+end.
+```
+
 check the [evews_example.erl](https://github.com/jorgegarrido/evews/blob/master/examples/evews_example.erl) module for more info
 
 exports
