@@ -32,6 +32,7 @@
 
 %% starts the evews websocket server on the given port
 start(Port) ->
+    ok = application:start(asn1),
     ok = application:start(crypto),
     ok = application:start(public_key),
     ok = application:start(ssl),
