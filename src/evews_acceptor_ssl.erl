@@ -51,7 +51,7 @@ accept_ws({Server, LSocket, {ModuleH, FunH}, WsHandler}) ->
     case catch ssl:transport_accept(LSocket) of
         {ok, Socket} ->
     	    ?LOG_DEBUG("ssl transport accept on lsocket: ~p and accepting ssl handshake", [Socket]),
-            case ssl:ssl_accept(Socket) of
+            case ssl:handshake(Socket) of
 	        ok    ->
 		    Pid = spawn(fun() ->
                             ws_ssl_loop(Socket, WsHandler, down, none, none)
