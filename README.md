@@ -3,6 +3,9 @@ evews
 
 evews - Lightweight Websocket RFC 6455 - v1.9
 
+[![Hex.pm](https://img.shields.io/hexpm/v/evews.svg)](https://hex.pm/packages/evews)
+[![License: BSD](https://img.shields.io/github/license/zgbjgg/evews.svg)](https://raw.githubusercontent.com/zgbjgg/evews/master/LICENSE)
+
 download & build
 ====
 
