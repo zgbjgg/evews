@@ -3,7 +3,7 @@
 # then remove './' from every call to escript, because we try call 
 # rebar script from this location.
 #
-REBAR=rebar
+REBAR=rebar3
 
 all: compile
 
