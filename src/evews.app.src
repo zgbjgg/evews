@@ -8,6 +8,8 @@
 	    evews_acceptor,
 	    evews, 
 	    'evews_rfc-6455']},
-  {applications, [kernel,stdlib]}
+  {applications, [kernel,stdlib]},
+  {licenses, ["BSD"]},
+  {links, [{"Github", "https://github.com/zgbjgg/evews"}]}
  ]}.
 
